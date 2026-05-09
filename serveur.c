@@ -12,6 +12,10 @@
 #define PORT_FREESCORD 4321
 #define NB_CLIENTS 124
 
+//tube variable globale
+int tube[2];
+
+
 /** Gérer toutes les communications avec le client renseigné dans
  * user, qui doit être l'adresse d'une struct user */
 void *handle_client(void *user);
@@ -19,9 +23,17 @@ void *handle_client(void *user);
  * retourne le descripteur de cette socket, ou -1 en cas d'erreur */
 int create_listening_sock(uint16_t port);
 
+
+void * repeteur(void * arg);
+
 int main(int argc, char *argv[])
 {
+	if(pipe(tube) < 0){
+		perror("pipe");
+		exit(-1);
+	}
 	
+	struct list * user_l = list_create(); 
 	
 	int sock_l = create_listening_sock(PORT_FREESCORD);
 	if(sock_l < 0){
@@ -29,12 +41,18 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	
+	pthread_t thr;
+	pthread_create(&thr, NULL, repeteur, user_l );
+	pthread_detach(thr);
 	
 	
 	while(1){
 		
 
 		struct user * clt = user_accept(sock_l);
+
+		//on ajoute le client accepté dans la liste
+		user_l = list_add(user_l, clt);
 
 		pthread_t th;
 
@@ -69,14 +87,22 @@ void *handle_client(void *clt)
 		
 		if(n == 0){
 			fprintf(stderr, "Client déconnecté\n");
+
 			break;
 		}
 		
-		//printf("Message reçu : %s\n", buf);	
-		if((write(u_clt->sock, buf, n)) < 0){
+		
+		// if((write(u_clt->sock, buf, n)) < 0){
+		// 	perror("write");
+		// 	break;
+		// }
+
+		//on recopie le message recu dans le tube
+		if((write(tube[1], buf, n)) < 0){
 			perror("write");
 			break;
 		}
+
 	}
 
 	close(u_clt->sock);
@@ -118,4 +144,41 @@ int create_listening_sock(uint16_t port)
 		return(-1);
 	}
 	return sock;
+}
+
+
+
+void * repeteur(void * arg){
+
+	
+	struct list * user_l = arg;
+
+	while(1){
+		char buf[256];
+		ssize_t n;
+
+		if((n = read(tube[0], buf, 255)) < 0){
+			perror("read");
+			exit(1);
+		}
+
+		//faire un mutex plus tard pour proteger la liste user parceque sinon imaginons le client se termine et appelle remove node et change prev et next
+		struct node * curr = user_l -> first; // pour parcourir la liste
+
+		while(curr != NULL){
+			
+			struct user * clt = (struct user *)(curr -> elt);
+			if(write(clt-> sock, buf, n)< 0){
+				perror("write");                                                                                                 
+				exit(2);
+			}
+
+			curr = curr -> next;
+		}
+
+	}
+
+
+
+	return NULL;
 }

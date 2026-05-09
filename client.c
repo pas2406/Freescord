@@ -32,25 +32,40 @@ int main(int argc, char *argv[])
 		ssize_t n;
 		char buf[256];
 		char buf_stdin[256];
-			
-		if(fgets(buf_stdin, 256, stdin) == NULL){
-			perror("fgets");
-			break;
+
+
+
+		struct pollfd fds[2] =
+				{ { .fd = 0, .events = POLLIN },
+				{ .fd = fd_sock, .events = POLLIN } };
+
+		
+		if(poll(fds, 2, 0) < 0){
+			perror("poll");
+			exit(1);
+		}
+		if(fds[0].revents & POLLIN){
+			if(fgets(buf_stdin, 256, stdin) == NULL){
+				perror("fgets");
+				break;
+			}
+
+			if((write(fd_sock, buf_stdin, strlen(buf_stdin))) < 0){
+				perror("write");
+				break;
+			}
 		}
 
-		if((write(fd_sock, buf_stdin, strlen(buf_stdin))) < 0){
-			perror("write");
-			break;
-		}
 
-		if((n=read(fd_sock, buf, strlen(buf_stdin))) < 0){
-			perror("read");
-			break;
-		}
+		if (fds[1].revents & POLLIN){
+			if((n=read(fd_sock, buf, strlen(buf_stdin))) < 0){
+				perror("read");
+				break;
+			}
 
-		buf[n] = '\0';
-		printf("Message reçu : %s\n", buf);
-	
+			buf[n] = '\0';
+			printf("Message reçu : %s\n", buf);
+		}
 	}
 
 	close(fd_sock);
