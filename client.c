@@ -29,26 +29,27 @@ int main(int argc, char *argv[])
 
 	while (1)
 	{
+		ssize_t n;
 		char buf[256];
 		char buf_stdin[256];
 			
-		if(fgets(buf, 256, stdin) == NULL){
+		if(fgets(buf_stdin, 256, stdin) == NULL){
 			perror("fgets");
 			break;
 		}
 
-		if((write(fd_sock, buf, strlen(buf))) < 0){
+		if((write(fd_sock, buf_stdin, strlen(buf_stdin))) < 0){
 			perror("write");
 			break;
 		}
 
-		if(read(fd_sock, buf_stdin, strlen(buf)) < 0){
+		if((n=read(fd_sock, buf, strlen(buf_stdin))) < 0){
 			perror("read");
 			break;
 		}
 
-		buf[strlen(buf)-1] = '\0';
-		printf("Message reçu : %s\n", buf_stdin);
+		buf[n] = '\0';
+		printf("Message reçu : %s\n", buf);
 	
 	}
 

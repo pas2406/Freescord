@@ -33,57 +33,58 @@ int main(int argc, char *argv[])
 	
 	while(1){
 		
-		char buf[256];
-		ssize_t n;
-		struct sockaddr_in sa_clt;
-		socklen_t sl = sizeof(sa_clt);
+
+		struct user * clt = user_accept(sock_l);
+
+		pthread_t th;
+
+		pthread_create(&th, NULL, handle_client, clt);
+
+		pthread_detach(th);
 		
-
-		int fds_clt = accept(sock_l, (struct sockaddr *) &sa_clt, &sl);
-		if (fds_clt< 0) { 
-			perror("accept");
-			close(sock_l);
-			exit(1);
-		}
-		
-
-		while (1)
-		{
-			
-			if ((n = read(fds_clt, buf, 256)) < 0) {
-				perror("read");
-				break;
-	
-			}
-	
-			
-			if(n == 0){
-				fprintf(stderr, "Client déconnecté\n");
-				break;
-			}
-			
-			//printf("Message reçu : %s\n", buf);	
-			if((write(fds_clt, buf, n)) < 0){
-				perror("write");
-				break;
-			}
-		}
-
-		close(fds_clt);
-		
-
-
-
 
 	}
-	close(sock_l);
+	
 
 
 }
 
 void *handle_client(void *clt)
 {
-	return clt;
+
+	struct user * u_clt = clt;
+	
+	char buf[256];
+	ssize_t n;
+
+	while (1)
+	{
+		
+		if ((n = read(u_clt->sock, buf, 256)) < 0) {
+			perror("read");
+			break;
+
+		}
+
+		
+		if(n == 0){
+			fprintf(stderr, "Client déconnecté\n");
+			break;
+		}
+		
+		//printf("Message reçu : %s\n", buf);	
+		if((write(u_clt->sock, buf, n)) < 0){
+			perror("write");
+			break;
+		}
+	}
+
+	close(u_clt->sock);
+	user_free(u_clt);
+
+
+	
+	return NULL;
 }
 
 int create_listening_sock(uint16_t port)
@@ -100,8 +101,8 @@ int create_listening_sock(uint16_t port)
 	s_addr.sin_port = htons(port);
 	s_addr.sin_addr.s_addr = INADDR_ANY;
 
-	int opt = 1;
 	// Permet de réutiliser l'adresse même si elle est encore en TIME_WAIT
+	int opt = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
 
 	//on attache la socket à l'adresse et au port
