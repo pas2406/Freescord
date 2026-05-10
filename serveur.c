@@ -1,3 +1,8 @@
+/* Papa Alioune SECK 12410002
+Je déclare qu'il s'agit de mon propre travail.
+Ce travail a été réalisé intégralement par un être humain. */
+
+
 #include <unistd.h>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -10,6 +15,7 @@
 #include "user.h"
 
 #define PORT_FREESCORD 4321
+#define SZ_MESSAGE 514
 #define NB_CLIENTS 124
 
 //tube variable globale
@@ -41,9 +47,13 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	
+	
 	pthread_t thr;
 	pthread_create(&thr, NULL, repeteur, user_l );
 	pthread_detach(thr);
+	
+	
+	printf("\t\t\t SERVEUR FREESCORD \t\t\t\n");
 	
 	
 	while(1){
@@ -72,13 +82,13 @@ void *handle_client(void *clt)
 
 	struct user * u_clt = clt;
 	
-	char buf[256];
+	char buf[SZ_MESSAGE];
 	ssize_t n;
 
 	while (1)
 	{
 		
-		if ((n = read(u_clt->sock, buf, 256)) < 0) {
+		if ((n = read(u_clt->sock, buf, SZ_MESSAGE)) < 0) {
 			perror("read");
 			break;
 
@@ -87,15 +97,10 @@ void *handle_client(void *clt)
 		
 		if(n == 0){
 			fprintf(stderr, "Client déconnecté\n");
-
 			break;
 		}
 		
 		
-		// if((write(u_clt->sock, buf, n)) < 0){
-		// 	perror("write");
-		// 	break;
-		// }
 
 		//on recopie le message recu dans le tube
 		if((write(tube[1], buf, n)) < 0){
